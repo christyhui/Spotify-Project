@@ -1,0 +1,76 @@
+---
+title: "Preliminary EDA For Spotify Dataset"
+output: html_document
+date: "2024-10-24"
+---
+
+```{r}
+spotify = read.csv("top_10000_1950-now.csv")
+```
+
+```{r}
+colnames(spotify)
+```
+
+```{r}
+# look for NAs for each column
+lapply(spotify, function(x) sum(is.na(x)))
+```
+
+We can simply delete the Album Genres from the dataset. However, I am interested in the NAs for the columns that each have 5 NAs. This is suspicious, so I want to output the values.
+
+```{r}
+# find indexes of NAs in Danceability column
+danceabilityNA = spotify[is.na(spotify$Danceability), ]
+
+# since all the NAs are between danceability and time.signature columns,
+# we find the column index of both so we can simply output the results 
+# and see if all the NAs exist in one area
+first_index = which(colnames(danceabilityNA) == "Danceability")
+second_index = which(colnames(danceabilityNA) == "Time.Signature")
+
+head(danceabilityNA[, first_index:second_index])
+```
+
+All of these NAs exist on the same rows for the same songs. It is sufficient to remove all NAs from the dataset
+
+
+
+```{r}
+year = spotify$Album.Release.Date
+```
+
+
+```{r}
+years = lapply(spotify$Album.Release.Date, function(x) substr(x, 1, 4)  )
+
+```
+
+
+```{r}
+hist(as.numeric(years),
+     breaks = "FD",
+     xlim = c(1950, 2030))
+```
+
+
+```{r}
+hist(spotify$Popularity[!spotify$Popularity == 0 ])
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
