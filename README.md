@@ -1,2 +1,2 @@
-# Stats-400_Spotify-Project
+# Stats-400_Spotify_Project
  
