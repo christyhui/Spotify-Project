@@ -5,6 +5,7 @@ date: "2024-10-24"
 ---
 
 ```{r}
+library(tidyr)
 spotify = read.csv("top_10000_1950-now.csv")
 ```
 
@@ -34,33 +35,41 @@ head(danceabilityNA[, first_index:second_index])
 
 All of these NAs exist on the same rows for the same songs. It is sufficient to remove all NAs from the dataset
 
-
-
 ```{r}
-year = spotify$Album.Release.Date
+spotify = spotify[, -c(which(colnames(spotify) == "Album.Genres"))] # delete album genres column
+spotify = drop_na(spotify)
 ```
 
-
 ```{r}
-years = lapply(spotify$Album.Release.Date, function(x) substr(x, 1, 4)  )
-
+spotify$Release.Year = lapply(spotify$Album.Release.Date, function(x) substr(x, 1, 4)  )
 ```
 
-
 ```{r}
-hist(as.numeric(years),
+hist(as.numeric(spotify$Release.Year),
+     xlab = "Years From 1950 to 2030",
+     ylab = "Frequency",
+     main = "Distribution of Years in Popularity Variable",
      breaks = "FD",
      xlim = c(1950, 2030))
 ```
 
 
 ```{r}
-hist(spotify$Popularity[!spotify$Popularity == 0 ])
+hist(spotify$Popularity[!spotify$Popularity == 0 ],
+     xlab = "Popularity Score",
+     ylab = "Frequency",
+     main = "Distribution of Non-Zero Popularity Scores",
+     breaks = "FD")
 ```
 
+```{r}
+length(spotify$Popularity[spotify$Popularity == 0])
+length(spotify$Popularity)
+```
 
-
-
+```{r}
+barplot(table(spotify$Explicit))
+```
 
 
 
