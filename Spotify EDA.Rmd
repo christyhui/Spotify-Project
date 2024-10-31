@@ -1,0 +1,278 @@
+---
+title: "EDA"
+output: html_notebook
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+``` 
+
+```{r}
+library(tidyr)
+spotify = read.csv("top_10000_1950-now.csv")
+summary(spotify)
+```
+
+```{r}
+colnames(spotify)
+```
+
+```{r}
+lapply(spotify, function(x) sum(is.na(x)))
+```
+
+```{r}
+# find indexes of NAs in Danceability column
+danceabilityNA = spotify[is.na(spotify$Danceability), ]
+
+# since all the NAs are between danceability and time.signature columns,
+# we find the column index of both so we can simply output the results 
+# and see if all the NAs exist in one area
+first_index = which(colnames(danceabilityNA) == "Danceability")
+second_index = which(colnames(danceabilityNA) == "Time.Signature")
+
+head(danceabilityNA[, first_index:second_index])
+```
+
+
+```{r}
+spotify = spotify[, -c(which(colnames(spotify) == "Album.Genres"))]
+spotify = drop_na(spotify)
+```
+
+```{r}
+spotify$Release.Year = lapply(spotify$Album.Release.Date, function(x) substr(x, 1, 4)  )
+hist(as.numeric(spotify$Release.Year),
+     xlab = "Years From 1950 to 2030",
+     ylab = "Frequency",
+     main = "Distribution of Years in Popularity Variable",
+     breaks = "FD",
+     xlim = c(1950, 2030))
+```
+
+```{r}
+hist(spotify$Popularity[!spotify$Popularity == 0 ],
+     xlab = "Popularity Score",
+     ylab = "Frequency",
+     main = "Distribution of Non-Zero Popularity Scores",
+     breaks = "FD")
+```
+
+```{r}
+length(spotify$Popularity[spotify$Popularity == 0])
+length(spotify$Popularity)
+```
+
+```{r}
+barplot(table(spotify$Explicit))
+```
+
+
+
+```{r}
+#kathleen 
+library(dplyr)
+suppressPackageStartupMessages(library(tidyr))
+suppressPackageStartupMessages(library(dplyr))
+suppressPackageStartupMessages(library(ggplot2))
+suppressPackageStartupMessages(library(broom))
+
+spotify <- spotify %>% select(-Track.URI, -Artist.URI.s., -Album.URI, -Album.Artist.URI.s., -Album.Image.URL, -Track.Preview.URL, -ISRC, -Added.By, -Added.At, -Album.Release.Date )
+spotify$Explicit <- as.character(spotify$Explicit)
+spotify$Explicit <- ifelse(spotify$Explicit == "true", 1, 0)
+
+spotify$Release.Year <- as.numeric(spotify$Release.Year)
+sapply(spotify, is.numeric)
+
+#figure out genres for now
+all_genres <- unlist(strsplit(spotify$Artist.Genres, ",\\s*"))
+unique_genres <- unique(all_genres)
+
+# describe predictors like Danceability Energy Key Loudness Mode Speechiness Acousticness Instrumental Liveness Valence Tempo Release Year Explicit popularity trackduration albumrelease date...
+
+library(corrplot)
+corr_numeric <- spotify %>%
+  select_if(is.numeric)
+# Correlation Matrix
+spotify_cor <- cor(corr_numeric)
+# Visualization of Correlation Matrix
+spotify_corrplot <- corrplot(spotify_cor, method = "color", addCoef.col = 1, number.cex = 0.3)
+```
+
+
+```{r}
+plot(spotify$Release.Year, spotify$Popularity, main = "Release Year vs. Popularity",
+     xlab = "Release Year", ylab = "Popularity", 
+     xlim = c(1960, 2024), ylim = c(1, 100),
+     pch = 19, frame = FALSE)
+lines(lowess(spotify$Release.Year, spotify$Popularity), col = "blue")
+```
+
+
+```{r}
+plot(spotify$Track.Number, spotify$Popularity, main = "Track Numbers vs. Popularity",
+     xlab = "Track Number", ylab = "Popularity", 
+     xlim = c(0, 50),
+     pch = 19, frame = FALSE)
+lines(lowess(spotify$Track.Number, spotify$Popularity), col = "blue")
+```
+
+
+
+```{r}
+plot(spotify$Danceability, spotify$Popularity, main = "Danceability vs. Popularity",
+     xlab = "Danceability", ylab = "Popularity", 
+     xlim = c(0.2, 1.0),
+     pch = 19, frame = FALSE)
+lines(lowess(spotify$Danceability, spotify$Popularity), col = "blue")
+```
+
+```{r}
+plot(spotify$Loudness, spotify$Popularity, main = "Loudness vs. Popularity",
+     xlab = "Loudness", ylab = "Popularity", 
+     xlim = c(-20, 0),
+     pch = 19, frame = FALSE)
+lines(lowess(spotify$Loudness, spotify$Popularity), col = "blue")
+```
+
+```{r}
+plot(spotify$Instrumentalness, spotify$Popularity, main = "Instrumentalness vs. Popularity",
+     xlab = "Instrumentalness", ylab = "Popularity", 
+     pch = 19, frame = FALSE)
+lines(lowess(spotify$Instrumentalness, spotify$Popularity), col = "blue")
+```
+
+```{r}
+boxplot(Popularity~Release.Year,
+        data=spotify,
+        main="Popularity for each year",
+        xlab="Release Year",
+        ylab="Popularity",
+        col="blue")
+```
+
+
+```{r}
+boxplot(Popularity~Track.Number,
+        data=spotify,
+        main="Popularity for Track.Number",
+        xlab="Track.Numberr",
+        ylab="Popularity",
+        col="blue")
+```
+
+```{r}
+unique_genres
+```
+
+```{r}
+#remove popularity = 0
+spotify_pop_greater_than_0 = spotify[spotify$Popularity > 0, ]
+spotify_pop_greater_than_0
+```
+
+```{r} 
+mean(spotify$Popularity)
+
+# 32.55278
+
+```
+
+```{r}
+spotify_pop = spotify[grep("pop", spotify$Artist.Genres), ]
+spotify_pop
+mean(spotify_pop$Popularity)
+
+# 35.55278
+```
+
+```{r}
+#add column to classify if the song is pop 
+spotify$isPop<-ifelse(grepl("pop", spotify$Artist.Genres), 1, 0)
+spotify$isPop
+```
+
+```{r}
+#plot 
+boxplot(Popularity~isPop,
+        data=spotify,
+        main="Popularity vs. isPop",
+        xlab="isPop",
+        ylab="Popularity",
+        col="blue")
+```
+
+```{r}
+#corrleation between isPop and Popularity
+cor(spotify$isPop,spotify$Popularity)
+
+# 0.11138 much higher than other factors we had
+```
+
+## Ramiro
+
+```{r}
+# ramiro contribution
+
+library(tidyverse)
+library(ggcorrplot)
+```
+
+```{r}
+spotify_nonzero_pop <- spotify[!spotify$Popularity == 0, ]
+```
+
+
+```{r}
+#artists with most songs on the list
+spotify %>%
+  group_by(Artist.Name.s.) %>%
+  summarise(n()) %>%
+  top_n(10)
+```
+
+```{r}
+#genres with the most songs on the list
+spotify %>%
+  group_by(Artist.Genres) %>%
+  summarise(n()) %>%
+  top_n(10)
+
+```
+
+```{r}
+#initial model
+m <- lm(Popularity ~ Danceability + Energy + Tempo + Explicit + Valence + 
+          Loudness + Track.Duration..ms., 
+          data = spotify_nonzero_pop)
+summary(m)
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
