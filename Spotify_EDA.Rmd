@@ -1,6 +1,8 @@
 ---
 title: "EDA"
-output: html_notebook
+output:
+  pdf_document: default
+  html_notebook: default
 ---
 
 ```{r setup, include=FALSE}
@@ -162,10 +164,6 @@ boxplot(Popularity~Track.Number,
 ```
 
 ```{r}
-unique_genres
-```
-
-```{r}
 #remove popularity = 0
 spotify_pop_greater_than_0 = spotify[spotify$Popularity > 0, ]
 spotify_pop_greater_than_0
@@ -212,8 +210,6 @@ cor(spotify$isPop,spotify$Popularity)
 ## Ramiro
 
 ```{r}
-# ramiro contribution
-
 library(tidyverse)
 library(ggcorrplot)
 ```
@@ -248,20 +244,6 @@ m <- lm(Popularity ~ Danceability + Energy + Tempo + Explicit + Valence +
 summary(m)
 
 ```
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

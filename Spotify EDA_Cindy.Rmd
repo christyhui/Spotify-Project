@@ -1,0 +1,493 @@
+---
+title: "EDA"
+output: html_notebook
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+``` 
+
+```{r}
+library(tidyr)
+spotify = read.csv("top_10000_1950-now.csv")
+summary(spotify)
+```
+
+```{r}
+colnames(spotify)
+```
+
+```{r}
+lapply(spotify, function(x) sum(is.na(x)))
+```
+
+```{r}
+# find indexes of NAs in Danceability column
+danceabilityNA = spotify[is.na(spotify$Danceability), ]
+
+# since all the NAs are between danceability and time.signature columns,
+# we find the column index of both so we can simply output the results 
+# and see if all the NAs exist in one area
+first_index = which(colnames(danceabilityNA) == "Danceability")
+second_index = which(colnames(danceabilityNA) == "Time.Signature")
+
+head(danceabilityNA[, first_index:second_index])
+```
+
+
+```{r}
+spotify = spotify[, -c(which(colnames(spotify) == "Album.Genres"))]
+spotify = drop_na(spotify)
+```
+
+```{r}
+spotify$Release.Year = lapply(spotify$Album.Release.Date, function(x) substr(x, 1, 4)  )
+hist(as.numeric(spotify$Release.Year),
+     xlab = "Years From 1950 to 2030",
+     ylab = "Frequency",
+     main = "Distribution of Years in Popularity Variable",
+     breaks = "FD",
+     xlim = c(1950, 2030))
+```
+
+```{r}
+hist(spotify$Popularity[!spotify$Popularity == 0 ],
+     xlab = "Popularity Score",
+     ylab = "Frequency",
+     main = "Distribution of Non-Zero Popularity Scores",
+     breaks = "FD")
+```
+
+```{r}
+length(spotify$Popularity[spotify$Popularity == 0])
+length(spotify$Popularity)
+```
+
+```{r}
+barplot(table(spotify$Explicit))
+```
+
+
+
+```{r}
+#kathleen 
+library(dplyr)
+suppressPackageStartupMessages(library(tidyr))
+suppressPackageStartupMessages(library(dplyr))
+suppressPackageStartupMessages(library(ggplot2))
+suppressPackageStartupMessages(library(broom))
+
+spotify <- spotify %>% select(-Track.URI, -Artist.URI.s., -Album.URI, -Album.Artist.URI.s., -Album.Image.URL, -Track.Preview.URL, -ISRC, -Added.By, -Added.At, -Album.Release.Date )
+spotify$Explicit <- as.character(spotify$Explicit)
+spotify$Explicit <- ifelse(spotify$Explicit == "true", 1, 0)
+
+spotify$Release.Year <- as.numeric(spotify$Release.Year)
+sapply(spotify, is.numeric)
+
+#figure out genres for now
+all_genres <- unlist(strsplit(spotify$Artist.Genres, ",\\s*"))
+unique_genres <- unique(all_genres)
+
+# describe predictors like Danceability Energy Key Loudness Mode Speechiness Acousticness Instrumental Liveness Valence Tempo Release Year Explicit popularity trackduration albumrelease date...
+
+library(corrplot)
+corr_numeric <- spotify %>%
+  select_if(is.numeric)
+# Correlation Matrix
+spotify_cor <- cor(corr_numeric)
+# Visualization of Correlation Matrix
+spotify_corrplot <- corrplot(spotify_cor, method = "color", addCoef.col = 1, number.cex = 0.3)
+```
+
+
+```{r}
+plot(spotify$Release.Year, spotify$Popularity, main = "Release Year vs. Popularity",
+     xlab = "Release Year", ylab = "Popularity", 
+     xlim = c(1960, 2024), ylim = c(1, 100),
+     pch = 19, frame = FALSE)
+lines(lowess(spotify$Release.Year, spotify$Popularity), col = "blue")
+```
+
+
+```{r}
+plot(spotify$Track.Number, spotify$Popularity, main = "Track Numbers vs. Popularity",
+     xlab = "Track Number", ylab = "Popularity", 
+     xlim = c(0, 50),
+     pch = 19, frame = FALSE)
+lines(lowess(spotify$Track.Number, spotify$Popularity), col = "blue")
+```
+
+
+
+```{r}
+plot(spotify$Danceability, spotify$Popularity, main = "Danceability vs. Popularity",
+     xlab = "Danceability", ylab = "Popularity", 
+     xlim = c(0.2, 1.0),
+     pch = 19, frame = FALSE)
+lines(lowess(spotify$Danceability, spotify$Popularity), col = "blue")
+```
+
+```{r}
+plot(spotify$Loudness, spotify$Popularity, main = "Loudness vs. Popularity",
+     xlab = "Loudness", ylab = "Popularity", 
+     xlim = c(-20, 0),
+     pch = 19, frame = FALSE)
+lines(lowess(spotify$Loudness, spotify$Popularity), col = "blue")
+```
+
+```{r}
+plot(spotify$Instrumentalness, spotify$Popularity, main = "Instrumentalness vs. Popularity",
+     xlab = "Instrumentalness", ylab = "Popularity", 
+     pch = 19, frame = FALSE)
+lines(lowess(spotify$Instrumentalness, spotify$Popularity), col = "blue")
+```
+
+```{r}
+boxplot(Popularity~Release.Year,
+        data=spotify,
+        main="Popularity for each year",
+        xlab="Release Year",
+        ylab="Popularity",
+        col="blue")
+```
+
+
+```{r}
+boxplot(Popularity~Track.Number,
+        data=spotify,
+        main="Popularity for Track.Number",
+        xlab="Track.Numberr",
+        ylab="Popularity",
+        col="blue")
+```
+
+```{r}
+unique_genres
+```
+
+```{r}
+#remove popularity = 0
+spotify_pop_greater_than_0 = spotify[spotify$Popularity > 0, ]
+spotify_pop_greater_than_0
+```
+
+```{r} 
+mean(spotify$Popularity)
+
+# 32.55278
+
+```
+
+```{r}
+spotify_pop = spotify[grep("pop", spotify$Artist.Genres), ]
+spotify_pop
+mean(spotify_pop$Popularity)
+
+# 35.55278
+```
+
+
+```{r}
+#add column to classify if the song is pop 
+spotify$isPop<-ifelse(grepl("pop", spotify$Artist.Genres), 1, 0)
+spotify$isPop
+```
+
+```{r}
+#add column to classify if the song is rock
+spotify$isRock<-ifelse(grepl("rock", spotify$Artist.Genres), 1, 0)
+```
+
+
+```{r}
+#plot 
+boxplot(Popularity~isPop,
+        data=spotify,
+        main="Popularity vs. isPop",
+        xlab="isPop",
+        ylab="Popularity",
+        col="blue")
+```
+```{r}
+#plot 
+boxplot(Popularity~isRock,
+        data=spotify,
+        main="Popularity vs. isRock",
+        xlab="isRock",
+        ylab="Popularity",
+        col="blue")
+```
+
+```{r}
+        
+#corrleation between isPop and Popularity
+cor(spotify$isPop,spotify$Popularity)
+
+# 0.11138 much higher than other factors we had
+```
+
+## Ramiro
+
+```{r}
+# ramiro contribution
+
+library(tidyverse)
+library(ggcorrplot)
+```
+
+```{r}
+spotify_nonzero_pop <- spotify[!spotify$Popularity == 0, ]
+```
+
+
+```{r}
+#artists with most songs on the list
+spotify %>%
+  group_by(Artist.Name.s.) %>%
+  summarise(n()) %>%
+  top_n(10)
+```
+
+```{r}
+#genres with the most songs on the list
+spotify %>%
+  group_by(Artist.Genres) %>%
+  summarise(n()) %>%
+  top_n(10)
+
+```
+# we see that the genres "pop" and "rock" seemed to have a 
+
+```{r}
+#genres with the most songs on the list
+spotify %>%
+  group_by(Artist.Genres) %>%
+  summarise(n()) %>%
+  top_n(10)
+
+```
+
+```{r}
+#initial model
+m <- lm(Popularity ~ Danceability + Energy + Tempo + Explicit + Valence + 
+          Loudness + Track.Duration..ms., 
+          data = spotify_nonzero_pop)
+summary(m)
+
+```
+
+
+## Here we want to create a categorical variable "genre" that has more than two levels: 1 = Pop, 2 = Rock, 3 = Pop and Rock, 4 = Neither Pop nor Rock
+
+```{r}
+# function 
+classify_song <- function(pop, rock) {
+  if (pop && rock) {
+    return(3)
+  } else if (pop) {
+    return(1)
+  } else if (rock) {
+    return(2)
+  } else {
+    return(4)
+  }
+}
+```
+
+```{r}
+# apply the classification function
+spotify$genre <- mapply(classify_song, spotify$isPop, spotify$isRock)
+spotify$genre
+```
+
+```{r}
+# interaction plot
+interaction.plot(x.factor = spotify$genre, 
+                 trace.factor = spotify$Explicit, 
+                 response = spotify$Popularity,
+                 xlab = "Genre", 
+                 ylab = "Mean Popularity", 
+                 trace.label = "Explicit",
+                 col = c("red", "blue", "green"),
+                 lwd = 2,
+                 main = "Interaction Plot of class and Explicit on Popularity")
+```
+
+```{r}
+boxplot(Popularity~genre*Explicit,
+        data=spotify,
+        main="side-by-side boxplot of popularity by genre and Explicit")
+```
+
+## the boxplots look different that the equality of variacne is not met
+
+```{r}
+#interaction effect genre vs. Explicit
+interaction.plot(spotify$genre, spotify$Explicit, spotify$Popularity, 
+                 xlab = "Genre",
+                 trace.label = "Explicit",
+                 main = "Intereaction plot showing the combined effect of genre and explicit on popularity")
+
+# lines are parallel, no significant interaction effects 
+```
+
+```{r}
+non_additive = aov(Popularity ~ genre*Explicit, data = spotify)
+summary(non_additive)
+
+# here the p-value for the interaction term is 0.423 which is larger than 0.05, our interaction effect is insignificant
+```
+```{r}
+plot(allEffects(non_additive), ask=FALSE)
+```
+
+```{r}
+# full model using all potential predictor variables with at least one numerical predictor, at least two categorical predictors, and one interaction effecr
+full_model <- lm(Popularity ~Track.Number + Danceability + Energy + Tempo + Explicit + Valence + Loudness + Track.Duration..ms. + genre + genre*Explicit, data = spotify)
+summary(full_model)
+```
+
+```{r}
+# step function
+step_model <- step(full_model)
+summary(step_model)
+```
+```{r}
+# ncv test 
+library(car)
+ncvTest(step_model)
+# our p-value is less than 0.05 that we reject the null hypothesis of homoscedasticity of residuals, and conclude that we do not meet the assumption of equality of the variance of the residuals.
+```
+
+```{r}
+# using square root transformation 
+sr_model <- lm(sqrt(Popularity) ~ sqrt(Track.Number) + sqrt(Danceability) + sqrt(Energy) + Explicit + sqrt(Track.Duration..ms.) + genre, data = spotify)
+summary(sr_model)
+# this results in a much smaller R^2, which is not ideal
+```
+
+```{r}
+# now we try log transformation
+log_model <- lm(log(Popularity + 1) ~ log(Track.Number + 1) + log(Danceability + 1)+ log(Track.Duration..ms. + 1) + genre + Explicit, data = spotify)
+summary(log_model)
+```
+
+```{r}
+# now we try to weight the model
+weighted_model <- lm(Popularity ~ Track.Number + Danceability + Energy + 
+    Explicit + Track.Duration..ms. + genre, data = spotify, weights = 1/residuals(step_model)^2)
+summary(weighted_model)
+# still does not meet the equality of variacne 
+```
+
+```{r}
+# now we try to reduce predictors and have a simpler model
+new_model = lm(Popularity ~ Track.Number + genre, data = spotify)
+summary(new_model)
+```
+
+```{r}
+plot(fitted(new_model), residuals(new_model))
+```
+
+```{r}
+ncvTest(new_model)
+# still shows heterscedasticity
+```
+
+
+```{r}
+# now we try log transformation
+new_log_model = lm(log(Popularity + 1) ~ log(Track.Number + 1)+ genre, data = spotify)
+summary(new_log_model)
+```
+
+
+```{r}
+ncvTest(new_log_model)
+# fail to reject the null -> homoscedasticity
+```
+
+
+```{r}
+# plot residuals vs. fitted for new_log_model
+plot(fitted(new_log_model), residuals(new_log_model))
+```
+
+
+```{r}
+## qq plot for step_model
+qqnorm(residuals(step_model), main = "Normal Q-Q")
+# normal 
+```
+
+```{r}
+## qq plot for new_model
+qqnorm(residuals(new_model), main = "Normal Q-Q")
+# less normal
+```
+
+```{r}
+outlierTest(step_model)
+# dont know why Bonferroni p is NA
+```
+
+```{r}
+outlierTest(new_model)
+# dont know why Bonferroni p is NA
+```
+
+```{r}
+vif(step_model)
+# no multicollinearity
+```
+
+```{r}
+vif(new_model)
+# no multicollinearity
+```
+
+```{r}
+# ten fold cross validation on step_model
+library(caret)
+set.seed(123)
+cv <- trainControl(method = "cv", number = 10)
+m1 <- train(Popularity ~ Track.Number + Danceability + Energy + 
+    Explicit + Track.Duration..ms. + genre, data = spotify, method = "lm", trControl = cv)
+print(m1$results)
+```
+```{r}
+# ten fold cross validation on new_model
+library(caret)
+set.seed(123)
+cv <- trainControl(method = "cv", number = 10)
+m2 <- train(Popularity ~ Track.Number + genre, data = spotify, method = "lm", trControl = cv)
+print(m2$results)
+```
+
+```{r}
+# AIC values for step_model
+AIC(step_model)
+```
+
+```{r}
+# AIC values for new_model
+AIC(new_model)
+# step_model has a smaller value of AIC than new_model
+```
+
+# new_model seems to be a better model than step_model since both has simialr AIC, RMSE and MAE. Even though new_model (0.024) has a smaller R^2 than step_model (0.028) but new_model is simplier.
+
+
+```{r}
+#  fisher test on step_model
+library("GeneCycle")
+fisher.g.test(residuals(step_model))
+```
+
+```{r}
+#  fisher test on new_model
+fisher.g.test(residuals(new_model))
+
+# both normal since fails to reject the null hypothesis of normality
+```
