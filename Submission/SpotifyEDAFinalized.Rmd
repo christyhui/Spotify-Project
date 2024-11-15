@@ -1,0 +1,515 @@
+---
+title: "Copy Pasted from Collab"
+author: "Christy Hui"
+date: "2024-11-04"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(RCurl)
+library(car)
+library(corrplot)
+library(caret)
+library(forecast)
+```
+
+```{r}
+url <- getURL("https://raw.githubusercontent.com/christyhui/Stats402-Spotify_Project/refs/heads/main/top_10000_1950-now.csv")
+spotify <- read.csv(text = url)
+```
+
+# Preliminary EDA
+
+```{r}
+#column names
+colnames(spotify)
+```
+
+```{r}
+#column classes
+lapply(spotify, class)
+```
+
+```{r}
+#missing data in each column
+lapply(spotify, function(x) sum(is.na(x)))
+```
+
+```{r}
+# find indexes of NAs in Danceability column
+danceabilityNA = spotify[is.na(spotify$Danceability), ]
+
+# since all the NAs are between danceability and time.signature columns,
+# we find the column index of both so we can simply output the results
+# and see if all the NAs exist in one area
+first_index = which(colnames(danceabilityNA) == "Danceability")
+second_index = which(colnames(danceabilityNA) == "Time.Signature")
+
+head(danceabilityNA[, first_index:second_index])
+
+# delete album genres column
+spotify = spotify[, -c(which(colnames(spotify) == "Album.Genres"))]
+spotify = drop_na(spotify)
+
+#clean up year column
+spotify$Release.Year = unlist(lapply(spotify$Album.Release.Date,
+                              function(x) substr(x, 1, 4)))
+```
+
+```{r}
+#histrogram of years in popularity
+hist(as.numeric(spotify$Release.Year),
+     xlab = "Years From 1950 to 2030",
+     ylab = "Frequency",
+     main = "Distribution of Years in Popularity Variable",
+     breaks = "FD",
+     xlim = c(1950, 2030))
+```
+
+```{r}
+#histogram of popularity
+hist(spotify$Popularity,
+     xlab = "Popularity Score",
+     ylab = "Frequency",
+     main = "Distribution of Popularity Scores",
+     breaks = "FD")
+```
+
+```{r}
+#same plot with nonzero popularity
+hist(spotify$Popularity[!spotify$Popularity == 0 ],
+     xlab = "Popularity Score",
+     ylab = "Frequency",
+     main = "Distribution of Non-Zero Popularity Scores",
+     breaks = "FD")
+```
+
+```{r}
+spotify_nonzero_pop <- spotify %>%
+                          filter(Popularity > 0 )
+
+big_genres = c(
+  "pop",
+  "rock",
+  "jazz",
+  "hip hop",
+  "rap")
+
+for(genre in big_genres){
+  genre_count <- sum(grepl(genre, spotify_nonzero_pop$Artist.Genres))
+  str <- paste(genre,":", genre_count)
+  print(str)
+}
+```
+
+# Cleaning Data and Performing EDA on Cleaned Data
+
+```{r}
+colnames(spotify)
+```
+
+```{r}
+# add only the variables we are interested in
+columns = c("Popularity", "Artist.Genres", "Explicit", colnames(spotify)[first_index:second_index], "Release.Year")
+spotify = spotify[, columns]
+```
+
+```{r}
+colnames(spotify)
+```
+
+```{r}
+# take away the ones that have a popularity of 0
+spotify = spotify[spotify$"Popularity" > 0, ]
+```
+
+```{r}
+# create helper function to transform genres into pop/rock
+transform_genre = function(x) {
+  if (grepl("pop", x, ignore.case = TRUE) & grepl("rock", x, ignore.case = TRUE)) {
+      "Both"
+      } else if (grepl("pop", x, ignore.case = TRUE)) {
+      "Pop"
+      } else if (grepl("rock", x, ignore.case = TRUE)) {
+      "Rock"
+      } else {
+      "Other"
+      }
+}
+```
+
+```{r}
+spotify$genreSimplified = unlist(lapply(spotify$Artist.Genres, function(x) transform_genre(x)))
+```
+
+```{r}
+unique(spotify$genreSimplified)
+```
+
+```{r}
+table(spotify$genreSimplified)
+```
+
+```{r}
+barplot(table(spotify$genreSimplified), main = "Count of Pop/Rock/Both/Other", xlab = "Genres")
+```
+
+```{r}
+spotify = subset(spotify, select = -Artist.Genres)
+```
+
+```{r}
+colnames(spotify)
+```
+
+```{r}
+lapply(spotify, class)
+```
+
+```{r}
+spotify$Explicit = as.factor(spotify$Explicit)
+spotify$Release.Year = as.numeric(spotify$Release.Year)
+spotify$genreSimplified = as.factor(spotify$genreSimplified)
+```
+
+```{r}
+corr_numeric <- spotify %>%
+  select_if(is.numeric)
+# Correlation Matrix
+spotify_cor <- cor(corr_numeric)
+# Visualization of Correlation Matrix
+spotify_corrplot <- corrplot(spotify_cor, method = "color", addCoef.col = 1, number.cex = 0.7)
+```
+
+```{r}
+# interested in the spread of each genre
+boxplot(spotify$Popularity~spotify$genreSimplified, xlab = "Genres", ylab = "Popularity", main = "Popularity vs Genres")
+```
+
+```{r}
+hist(spotify$Popularity[spotify$genreSimplified == "Pop"], breaks = "FD", main = "Popularity Distribution of Pop Songs", xlab = "Popularity Score")
+```
+
+```{r}
+# find mean of popularity if the song is a pop song
+mean(spotify$Popularity[spotify$genreSimplified == "Pop"])
+```
+
+
+```{r}
+hist(spotify$Popularity[spotify$genreSimplified == "Rock"], breaks = "FD", main = "Popularity Distribution of Rock Songs", xlab = "Popularity Score")
+```
+
+```{r}
+# find mean of popularity if the song is a rock song
+mean(spotify$Popularity[spotify$genreSimplified == "Rock"])
+```
+
+```{r}
+hist(spotify$Popularity[spotify$genreSimplified == "Both"], breaks = "FD", main = "Popularity Distribution of Pop and Rock Songs", xlab = "Popularity Score")
+```
+
+```{r}
+# find mean of popularity if the song is both a pop and rock song
+mean(spotify$Popularity[spotify$genreSimplified == "Both"])
+```
+
+```{r}
+hist(spotify$Popularity[spotify$genreSimplified == "Other"], breaks = "FD", main = "Popularity Distribution of Other Songs", xlab = "Popularity Score")
+```
+
+```{r}
+# find mean of popularity if the song is neither a pop nor song
+mean(spotify$Popularity[spotify$genreSimplified == "Other"])
+```
+
+```{r}
+# determine if means of popularity is different for each group
+aov1 = aov(Popularity ~ genreSimplified, data = spotify)
+summary(aov1)
+```
+
+```{r}
+sum(spotify$Explicit == "false")
+```
+
+```{r}
+sum(spotify$Explicit == "true")
+```
+
+```{r}
+boxplot(spotify$Popularity~spotify$Explicit, xlab = "Explicit", ylab = "Popularity", main = "Popularity vs Explicit")
+```
+
+```{r}
+# look for normality regarding the popularity of non-explicit songs
+hist(spotify$Popularity[spotify$Explicit == "false"], breaks = "FD", main = "Popularity Distribution of Non-Explicit Songs", xlab = "Popularity Score")
+```
+
+```{r}
+# look for normality regarding the popularity of explicit songs
+hist(spotify$Popularity[spotify$Explicit == "true"], breaks = "FD", main = "Popularity Distribution of Explicit Songs", xlab = "Popularity Score")
+```
+
+```{r}
+# despite knowing normality is failed for explicit songs, perform the t-test anyway and see if means are independent
+t.test(Popularity~Explicit, data = spotify)
+```
+
+```{r}
+table(spotify$genreSimplified, spotify$Explicit)
+```
+
+```{r}
+prop.table(table(spotify$genreSimplified, spotify$Explicit))
+```
+
+```{r}
+# see if both of our categorical variables are independent using chi square test
+chisq.test(table(spotify$genreSimplified, spotify$Explicit))
+```
+
+```{r}
+# perform levene's test to see whether or not population variances are equal
+leveneTest(Popularity ~ Explicit*genreSimplified, data = spotify)
+```
+
+```{r}
+# determine if adding both into anova helps
+aov2 = aov(Popularity ~ Explicit*genreSimplified, data = spotify)
+summary(aov2)
+```
+
+```{r}
+interaction.plot(spotify$Explicit, spotify$genreSimplified, spotify$Popularity,
+                  xlab = "Explicit",
+                  ylab = "Mean of Popularity",
+                  trace.label = "Genres")
+```
+
+```{r}
+#set "Other" as reference level for genre
+spotify$genreSimplified <- relevel(spotify$genreSimplified, ref = "Other")
+levels(spotify$genreSimplified)
+```
+
+# Modeling
+
+```{r}
+set.seed(213)
+```
+
+```{r}
+## use 80% of data to train
+ntrain = as.integer(nrow(spotify) * 0.8)
+## shuffle the rows
+shuffled_index = sample(nrow(spotify))
+train.index = shuffled_index[1:ntrain]
+
+spotifyTrain = spotify[train.index,]
+spotifyTest = spotify[-train.index,]
+```
+
+```{r}
+dim(spotifyTrain)
+```
+
+```{r}
+dim(spotifyTest)
+```
+
+```{r}
+lm1 = lm(Popularity ~ (.), data = spotifyTrain)
+summary(lm1)
+```
+
+```{r}
+lm2 <- lm(Popularity ~ .^2, data = spotifyTrain)
+summary(lm2)
+```
+
+```{r}
+#model with only significant interaction terms
+lm3 <- lm(Popularity ~ Explicit + Danceability + Energy + Key + Loudness + Mode + Speechiness
+          + Acousticness + Instrumentalness + Liveness + Valence + Tempo +
+            Time.Signature + Release.Year + genreSimplified +
+            Explicit*Valence + Explicit*Release.Year + Explicit*genreSimplified
+          + Danceability*Energy + Danceability*Liveness + Energy*Key +
+            + Energy*Instrumentalness + Key*Acousticness + Key*Liveness +
+            Loudness*Release.Year + Mode*Tempo + Acousticness*Instrumentalness +
+            Acousticness*genreSimplified + Valence*Release.Year
+            + Release.Year*genreSimplified, data = spotifyTrain)
+summary(lm3)
+```
+
+```{r}
+vif(lm1)
+```
+
+```{r}
+vif(lm2)
+```
+
+```{r}
+vif(lm3)
+```
+
+```{r}
+# create helper function to find mae and rmse
+
+errors = function(mod, test) {
+  preds = predict(mod, test)
+  err = test$Popularity - preds
+  mae = mean(abs(err))
+  rmse = sqrt(mean(err^2))
+  c(mae, rmse)
+}
+```
+
+```{r}
+errors(lm1, spotifyTest)
+```
+
+```{r}
+errors(lm2, spotifyTest)
+```
+
+```{r}
+errors(lm3, spotifyTest)
+```
+
+```{r}
+print(paste0("Model 1 R^2: ", summary(lm1)$r.squared))
+print(paste0("Model 2 R^2: ", summary(lm2)$r.squared))
+print(paste0("Model 3 R^2: ", summary(lm3)$r.squared))
+```
+
+```{r}
+print(paste0("Model 1 R^2: ", summary(lm1)$adj.r.squared))
+print(paste0("Model 2 R^2: ", summary(lm2)$adj.r.squared))
+print(paste0("Model 3 R^2: ", summary(lm3)$adj.r.squared))
+```
+
+```{r}
+AIC(lm1)
+```
+
+```{r}
+AIC(lm2)
+```
+
+```{r}
+AIC(lm3)
+```
+
+```{r}
+plot(lm1)
+```
+
+```{r}
+ncvTest(lm1)
+```
+
+```{r}
+lm5 <- lm(sqrt(Popularity) ~ (.), data = spotifyTrain)
+```
+
+```{r}
+summary(lm5)
+```
+
+```{r}
+plot(lm5)
+```
+
+```{r}
+#trying weighted least squares
+
+lm_weights <- 1/lm(abs(lm1$residuals) ~ lm1$fitted.values)$fitted.values^2
+```
+
+
+```{r}
+lm2_weighted <- lm(Popularity ~ (.)^2, data = spotifyTrain, weights = lm_weights)
+```
+
+```{r}
+summary(lm2_weighted)
+```
+
+```{r}
+plot(lm2_weighted)
+```
+
+```{r}
+lambda <- BoxCox.lambda(spotify$Popularity)
+boxcox_pop <- spotifyTrain$Popularity^(lambda)
+```
+
+```{r}
+lm1_boxcox <- lm(boxcox_pop ~ . , data=spotifyTrain)
+```
+
+```{r}
+summary(lm1_boxcox)
+```
+
+```{r}
+plot(lm1_boxcox)
+```
+
+```{r}
+train.loocv <- trainControl(method = "LOOCV")
+model.loocv1 <- train(Popularity ~ (.), data = spotifyTrain,
+                     method = "lm",
+                     trControl = train.loocv)
+```
+
+```{r}
+print(model.loocv1)
+```
+
+```{r}
+train.rkfold <- trainControl(method = "repeatedcv",
+                             number = 5, repeats = 3)
+model.rkfold1 <- train(Popularity ~ (.), data = spotifyTrain,
+                      method = "lm",
+                      trControl = train.rkfold)
+```
+
+```{r}
+print(model.rkfold1)
+```
+
+
+```{r}
+train.rkfold <- trainControl(method = "repeatedcv",
+                             number = 10, repeats = 3)
+model.rkfold2 <- train(Popularity ~ (.), data = spotifyTrain,
+                      method = "lm",
+                      trControl = train.rkfold)
+```
+
+```{r}
+print(model.rkfold2)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
